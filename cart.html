@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+
+<link href="/css/reset.css" th:href="@{/css/reset.css}" rel="stylesheet" />
+<link href="/css/style.css" th:href="@{/css/style.css}" rel="stylesheet" />
+
+<title>SKY.com</title>
+</head>
+<body>
+
+<header th:insert="fragments/page_header::pageHeader"></header>
+
+<main>
+
+<div class="container cart">
+
+	<div class="noData" th:if="${cartList == null || cartList.size() == 0}">
+		<p class="info">カート情報はありません。</p>
+	</div>
+	
+	<table class="cart"  th:if="${cartList != null && cartList.size() > 0}">
+		<tr>
+			<th>選択</th><th>画像</th><th>商品名</th><th>価格(円)</th><th>個数</th><th>小計(円)</th>
+		</tr>
+
+		<tr th:each="item:${cartList}">
+			<td>
+			 <input type="checkbox" name="id" class="check" th:value="${item.id}"/>
+			</td>
+			<td class="image">
+				<img class="itemImage" th:src = "@{{imagePath} (imagePath=${item.imageFullPath})}" alt="商品画像" />
+			</td>
+			<td class="number" th:text = "${item.productName}"/>
+			<td class="number" th:text = "${item.price}"/>
+			<td class="productCount number" th:text = "${item.productCount}"/>
+			<td class="total number" th:text = "${item.total}"/>
+		</tr>
+
+		<tr>
+			<td class="totalArea"></td>
+			<td class="totalArea"></td>
+			<td class="totalArea">合計(円)</td>
+			<td class="totalArea"></td>
+			<td class="totalArea" id="totalProductCount"></td>
+			<td class="totalArea" id="totalPrice"></td>
+		</tr>
+	</table>
+	<div class="buttonArea" th:if="${cartList != null && cartList.size() > 0}">
+		<button id=delete>削除</button>
+		<form action="/sky/settlement/" class="purchaseClass" style="display: inline-block;">
+			<button type="submit" id=purchase>購入</button>
+		</form>
+	</div>
+	
+</div>
+
+</main>
+
+<script>
+$(() => {
+	
+//	①商品総数と合計金額を算出し表示
+	totalArea();
+	
+//	②削除ボタン活性化
+	deleteButton();
+	
+//	③削除ボタン押下
+	$('#delete').on('click', () => {
+		let checkedList = $('.check:checked');
+		let checkedIdList = [];
+		for (checked of checkedList){
+			checkedIdList.push($(checked).val());
+		}
+		deleteCart(checkedList, checkedIdList);
+	});
+	
+//	④購入ボタン押下
+	$('#purchase').on('click', () => {
+		let userId = [[${loginSession.getUserId()}]];
+		if (userId == 0 && isEmpty($('#hiddenUserName').val())){
+			alert('ログインしてください！');
+			return false;
+		}
+	});
+});
+
+//	商品総数・合計金額表示処理(①)
+	function totalArea() {
+		let totalList = $('.total');
+		let countList = $('.productCount');
+		let totalPrice = 0;
+		let totalProductCount = 0;
+		
+		$(totalList).each((i, total) => {
+			totalPrice += parseInt($(total).text());
+			totalProductCount += parseInt($(countList[i]).text());
+		});
+		
+		$('#totalPrice').text(totalPrice);
+		$('#totalProductCount').text(totalProductCount);
+	}
+	
+//	削除ボタン活性化処理(②)
+	function deleteButton() {
+	$('#delete').prop('disabled',true);
+	$("input[type='checkbox']").on('click', () => {
+		if($('.check:checked').length > 0){
+			$('#delete').prop('disabled',false);
+		}else{
+			$('#delete').prop('disabled',true);
+		}
+		});
+	}
+
+//	削除処理(③)
+	function deleteCart(checkedList, checkedIdList) {
+		
+	$.ajax({
+		type : 'POST',
+		url : '/sky/cart/delete',
+		data : JSON.stringify({'checkedIdList' : checkedIdList}),
+		datatype : 'json',
+		contentType : 'application/json',
+		scriptCharset : 'utf-8'
+	})
+	
+	.then((result) => {
+		for (checked of checkedList){
+			$(checked).parent().parent().remove();
+		}
+		
+		let checkList = $('.check');
+		if (checkList.length == 0){
+			location.replace('/sky/cart/');
+		}
+		
+		totalArea();
+		deleteButton();
+		
+	},() => {
+		alert('Error:ajax connection failed.');
+	});
+}
+
+</script>
+
+</body>
+</html>
